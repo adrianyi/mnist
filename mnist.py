@@ -51,7 +51,7 @@ def print_data(data_dir, n=100):
     '''Print first n files in data_dir'''
     print('Printing {n} files in {d}'.format(n=n, d=data_dir))
     i = 0
-    for path, subdirs, files in os.walk(PATH):
+    for path, subdirs, files in os.walk(data_dir):
         for name in files:
             print(os.path.join(path, name))
             if i > n:
