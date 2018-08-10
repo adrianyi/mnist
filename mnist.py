@@ -26,6 +26,7 @@ except:
     worker_hosts = None
 
 def get_args():
+    '''Return parsed args'''
     parser = ArgumentParser()
     parser.add_argument('--local_data_dir', type=str, default='data/',
                         help='Path to local data directory')
@@ -45,6 +46,16 @@ def get_args():
     opts.log_dir = get_logs_path(root = opts.local_log_dir)
 
     return opts
+
+def print_data(data_dir, n=100):
+    '''Print first n files in data_dir'''
+    print('Printing {n} files in {d}'.format(n=n, d=data_dir))
+    i = 0
+    for path, subdirs, files in os.walk(PATH):
+        for name in files:
+            print(os.path.join(path, name))
+            if i > n:
+                return
 
 def main(opts):
     data = read_data_sets(opts.data_dir,
@@ -87,6 +98,6 @@ def main(opts):
     tf.estimator.train_and_evaluate(classifier, train_spec, eval_spec)
 
 if __name__ == '__main__':
-
     opts = get_args()
+    print_data(opts.data_dir, 100)
     main(opts)
