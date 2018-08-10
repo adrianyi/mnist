@@ -39,7 +39,7 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=128)
     opts = parser.parse_args()
 
-    opts.data_dir = get_data_path(dataset_name = '*/*',
+    opts.data_dir = get_data_path(dataset_name = 'adrianyi/mnist-data',
                                  local_root = opts.local_data_dir,
                                  local_repo = '',
                                  path = '')
