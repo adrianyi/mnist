@@ -24,21 +24,28 @@ tf.logging.set_verbosity(tf.logging.INFO)
 #     pass
 
 try:
-    job_name = os.environ['JOB_NAME']
-    task_index = int(os.environ['TASK_INDEX'])
-    ps_hosts = os.environ['PS_HOSTS'].split(',')
-    worker_hosts = os.environ['WORKER_HOSTS'].split(',')
-    TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
-                 'cluster': {'chief': [worker_hosts[0]],
-                             'worker': worker_hosts,
-                             'ps': ps_hosts},
-                 'environment': 'cloud'}
+    try:
+        TF_CONFIG = os.environ['TF_CONFIG']
+        print('Using TF_CONFIG variable')
+    except KeyError:
+        job_name = os.environ['JOB_NAME']
+        task_index = int(os.environ['TASK_INDEX'])
+        ps_hosts = os.environ['PS_HOSTS'].split(',')
+        worker_hosts = os.environ['WORKER_HOSTS'].split(',')
+        print('Building TF_CONFIG variable')
+        TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
+                    'cluster': {'chief': [worker_hosts[0]],
+                                'worker': worker_hosts,
+                                'ps': ps_hosts},
+                    'environment': 'cloud'}
     TF_CONFIG['cluster'][job_name][task_index] = 'localhost:5000'
     if job_name == 'chief' or job_name == 'master':
         TF_CONFIG['cluster']['worker'][task_index] = 'localhost:5000'
     os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
-except:
-    print('No TF_CONFIG, single node')
+except KeyError:
+    print('No TF_CONFIG, local mode')
+else:
+    print('TF_CONFIG =', os.environ['TF_CONFIG'])
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
