@@ -63,7 +63,7 @@ except KeyError as ex:
 else:
     print('TF_CONFIG =', os.environ['TF_CONFIG'])
 
-if TF_CONFIG['cluster']['task']['type'] == 'worker' and TF_CONFIG['cluster']['task']['index'] > 0:
+if TF_CONFIG['task']['type'] == 'worker' and TF_CONFIG['task']['index'] > 0:
     import time
     time.sleep(60)
 
