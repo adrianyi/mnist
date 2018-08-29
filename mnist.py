@@ -62,10 +62,9 @@ except KeyError as ex:
     print('No TF_CONFIG, local mode')
 else:
     print('TF_CONFIG =', os.environ['TF_CONFIG'])
-
-if TF_CONFIG['task']['type'] == 'worker' and TF_CONFIG['task']['index'] > 0:
-    import time
-    time.sleep(60)
+    if TF_CONFIG['task']['type'] == 'worker' and TF_CONFIG['task']['index'] > 0:
+        import time
+        time.sleep(60)
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
