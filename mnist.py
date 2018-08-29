@@ -25,45 +25,20 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 try:
     job_name = os.environ['JOB_NAME']
-    print('job_name', job_name)
     task_index = int(os.environ['TASK_INDEX'])
-    print('task_index', task_index)
     ps_hosts = os.environ['PS_HOSTS'].split(',')
-    print('ps_hosts', ps_hosts)
     worker_hosts = os.environ['WORKER_HOSTS'].split(',')
-    print('worker_hosts', worker_hosts)
     TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
                  'cluster': {'chief': [worker_hosts[0]],
                              'worker': worker_hosts,
                              'ps': ps_hosts},
                  'environment': 'cloud'}
-    print('TF_CONFIG', TF_CONFIG)
-    local_ip =  'localhost:5000'
-    print('local_ip', local_ip)
-    TF_CONFIG['cluster'][job_name][task_index] = local_ip
-    print('TF_CONFIG', TF_CONFIG)
+    TF_CONFIG['cluster'][job_name][task_index] = 'localhost:5000'
     if job_name == 'chief' or job_name == 'master':
-        TF_CONFIG['cluster']['worker'][task_index] = local_ip
+        TF_CONFIG['cluster']['worker'][task_index] = 'localhost:5000'
     os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
-    print(TF_CONFIG)
-    print(os.environ['TF_CONFIG'])
 except:
-    print('*** FAILED ***')
-
-for varname in ['JOB_NAME', 'TASK_INDEX', 'PS_HOSTS', 'WORKER_HOSTS', 'TF_CONFIG']:
-    try:
-        print(varname, '=', os.environ[varname])
-    except:
-        print('***CANNOT FIND', varname)
-
-import time
-for _ in range(100):
-    time.sleep(2)
-    print('job_name', os.environ['JOB_NAME'], job_name)
-    print('task_index', os.environ['TASK_INDEX'], task_index)
-    print('ps_hosts', os.environ['PS_HOSTS'], ps_hosts)
-    print('worker_hosts', os.environ['WORKER_HOSTS'], worker_hosts)
-    print('TF_CONFIG', os.environ['TF_CONFIG'], TF_CONFIG)
+    print('No TF_CONFIG, single node')
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
