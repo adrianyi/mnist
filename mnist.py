@@ -27,25 +27,44 @@ try:
     try:
         TF_CONFIG = os.environ['TF_CONFIG']
         print('Using TF_CONFIG variable')
-    except KeyError:
+    except KeyError as ex:
+        print(str(ex))
         job_name = os.environ['JOB_NAME']
+        print('job name', job_name)
         task_index = int(os.environ['TASK_INDEX'])
+        print('task_index', task_index)
         ps_hosts = os.environ['PS_HOSTS'].split(',')
+        print('ps_hosts', ps_hosts)
         worker_hosts = os.environ['WORKER_HOSTS'].split(',')
+        print('worker_hosts', worker_hosts)
         print('Building TF_CONFIG variable')
         TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
                     'cluster': {'chief': [worker_hosts[0]],
                                 'worker': worker_hosts,
                                 'ps': ps_hosts},
                     'environment': 'cloud'}
+        print('TF_CONFIG', TF_CONFIG)
     TF_CONFIG['cluster'][job_name][task_index] = 'localhost:5000'
+    print('TF_CONFIG', TF_CONFIG)
     if job_name == 'chief' or job_name == 'master':
         TF_CONFIG['cluster']['worker'][task_index] = 'localhost:5000'
+        print('TF_CONFIG', TF_CONFIG)
     os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
-except KeyError:
+    print('TF_CONFIG', os.environ['TF_CONFIG'])
+except KeyError as ex:
+    print(str(ex))
     print('No TF_CONFIG, local mode')
 else:
     print('TF_CONFIG =', os.environ['TF_CONFIG'])
+
+import time
+for _ in range(100):
+    time.sleep(2)
+    for varname in ['JOB_NAME', 'TASK_INDEX', 'PS_HOSTS', 'WORKER_HOSTS', 'TF_CONFIG']:
+        try:
+            print(varname, '=', os.environ[varname])
+        except KeyError:
+            print('No', varname)
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
