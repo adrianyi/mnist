@@ -26,7 +26,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 try:
     job_name = os.environ['JOB_NAME']
     print('job_name', job_name)
-    task_index = os.environ['TASK_INDEX']
+    task_index = int(os.environ['TASK_INDEX'])
     print('task_index', task_index)
     ps_hosts = os.environ['PS_HOSTS'].split(',')
     print('ps_hosts', ps_hosts)
