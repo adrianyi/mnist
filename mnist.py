@@ -28,9 +28,9 @@ try:
     print('job_name', job_name)
     task_index = os.environ['TASK_INDEX']
     print('task_index', task_index)
-    ps_hosts = os.environ['PS_HOSTS'].strip('[]').split(',')
+    ps_hosts = os.environ['PS_HOSTS'].split(',')
     print('ps_hosts', ps_hosts)
-    worker_hosts = os.environ['WORKER_HOSTS'].strip('[]').split(',')
+    worker_hosts = os.environ['WORKER_HOSTS'].split(',')
     print('worker_hosts', worker_hosts)
     TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
                  'cluster': {'chief': [worker_hosts[0]],
@@ -38,7 +38,7 @@ try:
                              'ps': ps_hosts},
                  'environment': 'cloud'}
     print('TF_CONFIG', TF_CONFIG)
-    local_ip =  'localhost' + TF_CONFIG['cluster'][job_name][task_index].split(':')[1]
+    local_ip =  'localhost:5000'
     print('local_ip', local_ip)
     TF_CONFIG['cluster'][job_name][task_index] = local_ip
     print('TF_CONFIG', TF_CONFIG)
