@@ -44,6 +44,9 @@ try:
                                 'ps': ps_hosts},
                     'environment': 'cloud'}
         print('TF_CONFIG', TF_CONFIG)
+        if job_name == 'worker' and task_index == 0:
+            TF_CONFIG['task']['type'] = 'chief'
+            print('TF_CONFIG chief', TF_CONFIG)
     TF_CONFIG['cluster'][job_name][task_index] = 'localhost:5000'
     print('TF_CONFIG', TF_CONFIG)
     if job_name == 'chief':
