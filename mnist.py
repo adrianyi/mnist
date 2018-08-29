@@ -30,7 +30,7 @@ try:
     except KeyError as ex:
         print(str(ex))
         job_name = os.environ['JOB_NAME']
-        print('job name', job_name)
+        print('job_name', job_name)
         task_index = int(os.environ['TASK_INDEX'])
         print('task_index', task_index)
         ps_hosts = os.environ['PS_HOSTS'].split(',')
@@ -59,6 +59,10 @@ except KeyError as ex:
     print('No TF_CONFIG, local mode')
 else:
     print('TF_CONFIG =', os.environ['TF_CONFIG'])
+
+if TF_CONFIG['cluster']['task']['type'] == 'worker' and TF_CONFIG['cluster']['task']['index'] > 0:
+    import time
+    time.sleep(60)
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
