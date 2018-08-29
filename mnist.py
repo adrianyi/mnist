@@ -37,8 +37,11 @@ try:
                              'worker': worker_hosts,
                              'ps': ps_hosts},
                  'environment': 'cloud'}
+    print('TF_CONFIG', TF_CONFIG)
     local_ip =  'localhost' + TF_CONFIG['cluster'][job_name][task_index].split(':')[1]
+    print('local_ip', local_ip)
     TF_CONFIG['cluster'][job_name][task_index] = local_ip
+    print('TF_CONFIG', TF_CONFIG)
     if job_name == 'chief' or job_name == 'master':
         TF_CONFIG['cluster']['worker'][task_index] = local_ip
     os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
@@ -53,10 +56,14 @@ for varname in ['JOB_NAME', 'TASK_INDEX', 'PS_HOSTS', 'WORKER_HOSTS', 'TF_CONFIG
     except:
         print('***CANNOT FIND', varname)
 
-import sys
 import time
-time.sleep(60)
-sys.exit()
+for _ in range(100):
+    time.sleep(2)
+    print('job_name', os.environ['JOB_NAME'], job_name)
+    print('task_index', os.environ['TASK_INDEX'], task_index)
+    print('ps_hosts', os.environ['PS_HOSTS'], ps_hosts)
+    print('worker_hosts', os.environ['WORKER_HOSTS'], worker_hosts)
+    print('TF_CONFIG', os.environ['TF_CONFIG'], TF_CONFIG)
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
