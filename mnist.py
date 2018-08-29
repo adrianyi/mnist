@@ -46,8 +46,11 @@ try:
         print('TF_CONFIG', TF_CONFIG)
     TF_CONFIG['cluster'][job_name][task_index] = 'localhost:5000'
     print('TF_CONFIG', TF_CONFIG)
-    if job_name == 'chief' or job_name == 'master':
+    if job_name == 'chief':
         TF_CONFIG['cluster']['worker'][task_index] = 'localhost:5000'
+        print('TF_CONFIG', TF_CONFIG)
+    elif job_name == 'worker' and task_index == 0:
+        TF_CONFIG['cluster']['chief'] = ['localhost:5000']
         print('TF_CONFIG', TF_CONFIG)
     os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
     print('TF_CONFIG', os.environ['TF_CONFIG'])
