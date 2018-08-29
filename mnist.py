@@ -53,6 +53,11 @@ for varname in ['JOB_NAME', 'TASK_INDEX', 'PS_HOSTS', 'WORKER_HOSTS', 'TF_CONFIG
     except:
         print('***CANNOT FIND', varname)
 
+import sys
+import time
+time.sleep(60)
+sys.exit()
+
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
