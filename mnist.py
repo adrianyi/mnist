@@ -9,19 +9,35 @@ from clusterone import get_data_path, get_logs_path
 from tensorflow.examples.tutorials.mnist.input_data import read_data_sets
 
 tf.logging.set_verbosity(tf.logging.INFO)
-try:
-    config = os.environ['TF_CONFIG']
-    config = json.loads(config)
-    task = config['task']['type']
-    task_index = config['task']['index']
+# try:
+#     config = os.environ['TF_CONFIG']
+#     config = json.loads(config)
+#     task = config['task']['type']
+#     task_index = config['task']['index']
 
-    local_ip = 'localhost:' + config['cluster'][task][task_index].split(':')[1]
-    config['cluster'][task][task_index] = local_ip
-    if task == 'chief' or task == 'master':
-        config['cluster']['worker'][task_index] = local_ip
-    os.environ['TF_CONFIG'] = json.dumps(config)
+#     local_ip = 'localhost:' + config['cluster'][task][task_index].split(':')[1]
+#     config['cluster'][task][task_index] = local_ip
+#     if task == 'chief' or task == 'master':
+#         config['cluster']['worker'][task_index] = local_ip
+#     os.environ['TF_CONFIG'] = json.dumps(config)
+# except:
+#     pass
+
+try:
+    job_name = os.environ['JOB_NAME']
+    task_index = os.environ['TASK_INDEX']
+    ps_hosts = os.environ['PS_HOSTS'].strip('[]').split()
+    worker_hosts = os.environ['WORKER_HOSTS'].strip('[]').split()
+    TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
+                 'cluster': {'chief': worker_hosts[0],
+                             'workers': worker_hosts,
+                             'ps': ps_hosts},
+                 'environment': 'cloud'}
+    os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
+    print(TF_CONFIG)
+    print(os.environ['TF_CONFIG'])
 except:
-    pass
+    print('*** FAILED ***')
 
 for varname in ['JOB_NAME', 'TASK_INDEX', 'PS_HOSTS', 'WORKER_HOSTS', 'TF_CONFIG']:
     try:
