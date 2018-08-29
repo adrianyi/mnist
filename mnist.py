@@ -25,9 +25,13 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 try:
     job_name = os.environ['JOB_NAME']
+    print('job_name', job_name)
     task_index = os.environ['TASK_INDEX']
+    print('task_index', task_index)
     ps_hosts = os.environ['PS_HOSTS'].strip('[]').split(',')
+    print('ps_hosts', ps_hosts)
     worker_hosts = os.environ['WORKER_HOSTS'].strip('[]').split(',')
+    print('worker_hosts', worker_hosts)
     TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
                  'cluster': {'chief': [worker_hosts[0]],
                              'worker': worker_hosts,
