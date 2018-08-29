@@ -57,15 +57,6 @@ except KeyError as ex:
 else:
     print('TF_CONFIG =', os.environ['TF_CONFIG'])
 
-import time
-for _ in range(100):
-    time.sleep(2)
-    for varname in ['JOB_NAME', 'TASK_INDEX', 'PS_HOSTS', 'WORKER_HOSTS', 'TF_CONFIG']:
-        try:
-            print(varname, '=', os.environ[varname])
-        except KeyError:
-            print('No', varname)
-
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
