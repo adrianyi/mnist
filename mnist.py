@@ -22,6 +22,7 @@ try:
     os.environ['TF_CONFIG'] = json.dumps(config)
 except:
     pass
+print(os.environ['TF_CONFIG'])
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
