@@ -131,7 +131,7 @@ def main(opts):
     eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn,
                                       steps=None,
                                       start_delay_secs=0,
-                                      throttle_secs=30)
+                                      throttle_secs=opts.eval_secs)
 
     tf.estimator.train_and_evaluate(classifier, train_spec, eval_spec)
 
