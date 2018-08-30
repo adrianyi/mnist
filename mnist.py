@@ -8,63 +8,12 @@ from clusterone import get_data_path, get_logs_path
 
 from tensorflow.examples.tutorials.mnist.input_data import read_data_sets
 
+from utils import get_tf_config
+
+TF_CONFIG = get_tf_config()
+os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
+
 tf.logging.set_verbosity(tf.logging.INFO)
-# try:
-#     config = os.environ['TF_CONFIG']
-#     config = json.loads(config)
-#     task = config['task']['type']
-#     task_index = config['task']['index']
-
-#     local_ip = 'localhost:' + config['cluster'][task][task_index].split(':')[1]
-#     config['cluster'][task][task_index] = local_ip
-#     if task == 'chief' or task == 'master':
-#         config['cluster']['worker'][task_index] = local_ip
-#     os.environ['TF_CONFIG'] = json.dumps(config)
-# except:
-#     pass
-
-try:
-    try:
-        TF_CONFIG = os.environ['TF_CONFIG']
-        print('Using TF_CONFIG variable')
-    except KeyError as ex:
-        print(str(ex))
-        job_name = os.environ['JOB_NAME']
-        print('job_name', job_name)
-        task_index = int(os.environ['TASK_INDEX'])
-        print('task_index', task_index)
-        ps_hosts = os.environ['PS_HOSTS'].split(',')
-        print('ps_hosts', ps_hosts)
-        worker_hosts = os.environ['WORKER_HOSTS'].split(',')
-        print('worker_hosts', worker_hosts)
-        print('Building TF_CONFIG variable')
-        TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
-                    'cluster': {'chief': [worker_hosts[0]],
-                                'worker': worker_hosts,
-                                'ps': ps_hosts},
-                    'environment': 'cloud'}
-        print('TF_CONFIG', TF_CONFIG)
-        if job_name == 'worker' and task_index == 0:
-            TF_CONFIG['task']['type'] = 'chief'
-            print('TF_CONFIG chief', TF_CONFIG)
-    TF_CONFIG['cluster'][job_name][task_index] = 'localhost:5000'
-    print('TF_CONFIG', TF_CONFIG)
-    if job_name == 'chief':
-        TF_CONFIG['cluster']['worker'][task_index] = 'localhost:5000'
-        print('TF_CONFIG', TF_CONFIG)
-    elif job_name == 'worker' and task_index == 0:
-        TF_CONFIG['cluster']['chief'] = ['localhost:5000']
-        print('TF_CONFIG', TF_CONFIG)
-    os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
-    print('TF_CONFIG', os.environ['TF_CONFIG'])
-except KeyError as ex:
-    print(str(ex))
-    print('No TF_CONFIG, local mode')
-else:
-    print('TF_CONFIG =', os.environ['TF_CONFIG'])
-    if TF_CONFIG['task']['type'] == 'worker' and TF_CONFIG['task']['index'] > 0:
-        import time
-        time.sleep(60)
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -131,10 +80,13 @@ def cnn_model(opts):
 
     temp = tf.keras.layers.Reshape([28, 28, 1], name='input_image')(input_tensor)
     for i, n_units in enumerate(opts.hidden_units):
-        temp = tf.keras.layers.Conv2D(n_units, kernel_size=opts.kernel_size, strides=(2, 2),
+        temp = tf.keras.layers.Conv2D(n_units, kernel_size=opts.kernel_size,
                                       activation='relu', name='cnn'+str(i))(temp)
-        temp = tf.keras.layers.Dropout(opts.dropout, name='dropout'+str(i))(temp)
-    temp = tf.keras.layers.GlobalAvgPool2D(name='average')(temp)
+    temp = tf.keras.layers.MaxPooling2D(pool_size=(2, 2), name='maxpool')(temp)
+    temp = tf.keras.layers.Dropout(opts.dropout, name='dropout1')(temp)
+    temp = tf.keras.layers.Flatten(name='flatten')(temp)
+    temp = tf.keras.layers.Dense(128, activation='relu', name='dense')(temp)
+    temp = tf.keras.layers.Dropout(opts.dropout, name='dropout2')(temp)
     output = tf.keras.layers.Dense(10, activation='softmax', name='output')(temp)
 
     model = tf.keras.models.Model(inputs=input_tensor, outputs=output)
