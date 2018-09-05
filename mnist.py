@@ -8,8 +8,6 @@ from clusterone import get_data_path, get_logs_path
 
 from tensorflow.examples.tutorials.mnist.input_data import read_data_sets
 
-from utils import get_tf_config
-
 tf.logging.set_verbosity(tf.logging.INFO)
 try:
     job_name = os.environ['JOB_NAME']
@@ -21,7 +19,7 @@ try:
                              'worker': worker_hosts,
                              'ps': ps_hosts},
                  'environment': 'cloud'}
-    local_ip = 'localhost:' + config['cluster'][job_name][task_index].split(':')[1]
+    local_ip = 'localhost:' + TF_CONFIG['cluster'][job_name][task_index].split(':')[1]
     if (job_name == 'chief') or (job_name == 'worker' and task_index == 0):
         job_name = 'chief'
         TF_CONFIG['task']['type'] = 'chief'
