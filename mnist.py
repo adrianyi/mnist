@@ -114,17 +114,31 @@ def main(opts):
                 log_step_count_steps=100)
     classifier = tf.keras.estimator.model_to_estimator(model, model_dir=opts.log_dir, config=config)
 
-    train_input_fn = tf.estimator.inputs.numpy_input_fn(
-                         x={'input': data.train.images},
-                         y=tf.keras.utils.to_categorical(data.train.labels.astype(np.int32), 10).astype(np.float32),
-                         num_epochs=None,
-                         batch_size=opts.batch_size,
-                         shuffle=True)
-    eval_input_fn = tf.estimator.inputs.numpy_input_fn(
-                         x={'input': data.test.images},
-                         y=tf.keras.utils.to_categorical(data.test.labels.astype(np.int32), 10).astype(np.float32),
-                         num_epochs=1,
-                         shuffle=False)
+    # train_input_fn = tf.estimator.inputs.numpy_input_fn(
+    #                      x={'input': data.train.images},
+    #                      y=tf.keras.utils.to_categorical(data.train.labels.astype(np.int32), 10).astype(np.float32),
+    #                      num_epochs=None,
+    #                      batch_size=opts.batch_size,
+    #                      shuffle=True)
+    # eval_input_fn = tf.estimator.inputs.numpy_input_fn(
+    #                      x={'input': data.test.images},
+    #                      y=tf.keras.utils.to_categorical(data.test.labels.astype(np.int32), 10).astype(np.float32),
+    #                      num_epochs=1,
+    #                      shuffle=False)
+    def input_fn(x, y):
+        dataset = tf.data.Dataset.from_tensor_slices((x, y))
+        dataset = dataset.shuffle(1000).repeat().batch(opts.batch_size)
+        return dataset
+
+    def train_input_fn():
+        x = {'input': data.train.images}
+        y = tf.keras.utils.to_categorical(data.train.labels.astype(np.int32), 10).astype(np.float32)
+        return input_fn(x, y)
+    
+    def eval_input_fn():
+        x = {'input': data.test.images}
+        y = tf.keras.utils.to_categorical(data.test.labels.astype(np.int32), 10).astype(np.float32)
+        return input_fn(x, y)
 
     train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn,
                                         max_steps=1e6)
