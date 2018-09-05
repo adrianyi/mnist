@@ -10,10 +10,26 @@ from tensorflow.examples.tutorials.mnist.input_data import read_data_sets
 
 from utils import get_tf_config
 
-TF_CONFIG = get_tf_config()
-os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
-
 tf.logging.set_verbosity(tf.logging.INFO)
+try:
+    job_name = os.environ['JOB_NAME']
+    task_index = int(os.environ['TASK_INDEX'])
+    ps_hosts = os.environ['PS_HOSTS'].split(',')
+    worker_hosts = os.environ['WORKER_HOSTS'].split(',')
+    TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
+                 'cluster': {'chief': [worker_hosts[0]],
+                             'worker': worker_hosts,
+                             'ps': ps_hosts},
+                 'environment': 'cloud'}
+    local_ip = 'localhost:' + config['cluster'][job_name][task_index].split(':')[1]
+    if (job_name == 'chief') or (job_name == 'worker' and task_index == 0):
+        job_name = 'chief'
+        TF_CONFIG['task']['type'] = 'chief'
+        TF_CONFIG['cluster']['worker'][0] = local_ip
+    TF_CONFIG['cluster'][job_name][task_index] = local_ip
+    os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
+except KeyError as ex:
+    pass
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
