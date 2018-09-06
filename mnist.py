@@ -158,14 +158,18 @@ def main(opts):
 
     if opts.cnn:
         model = cnn_model(opts)
+        ckpt_steps = 100
+        log_steps = 10
     else:
         model = mlp_model(opts)
+        ckpt_steps = 1000
+        log_steps = 100
     config = tf.estimator.RunConfig(
                 model_dir=opts.log_dir,
                 save_summary_steps=1,
-                save_checkpoints_steps=1000,
+                save_checkpoints_steps=ckpt_steps,
                 keep_checkpoint_max=5,
-                log_step_count_steps=100)
+                log_step_count_steps=log_steps)
     classifier = tf.keras.estimator.model_to_estimator(model, model_dir=opts.log_dir, config=config)
 
     train_input_fn, train_iter_hook = get_inputs(data.train.images,
