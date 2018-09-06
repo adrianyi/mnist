@@ -109,7 +109,47 @@ def cnn_model(opts):
     print(model.summary())
     return model
 
+class IteratorInitializerHook(tf.train.SessionRunHook):
+    '''From https://medium.com/onfido-tech/higher-level-apis-in-tensorflow-67bfb602e6c0'''
+    def __init__(self):
+        super(IteratorInitializerHook, self).__init__()
+        self.iterator_initializer_func = None
+
+    def after_create_session(self, session, coord):
+        self.iterator_initializer_func(session)
+
+def get_inputs(x, y, batch_size=64, train=True):
+    '''Returns input function and and iterator initializer hook'''
+    iterator_initializer_hook = IteratorInitializerHook()
+
+    def input_fn():
+        '''Input function to be used for Estimator class'''
+        x_placeholder = tf.placeholder(tf.float32, x.shape)
+        y_placeholder = tf.placeholder(tf.float32, y.shape)
+        data_x = tf.data.Dataset.from_tensor_slices(x_placeholder)
+        data_y = tf.data.Dataset.from_tensor_slices(y_placeholder)
+        data = tf.data.Dataset.zip((data_x, data_y))
+        data = data.batch(batch_size)
+        if train:
+            data = data.repeat(count=None).shuffle(buffer_size=5*batch_size)
+
+        data = data.prefetch(8)
+
+        iterator = data.make_initializable_iterator()
+        next_example, next_label = iterator.get_next()
+
+        # Set runhook to initialize iterator
+        iterator_initializer_hook.iterator_initializer_func = lambda sess: sess.run(
+            iterator.initializer,
+            feed_dict={x_placeholder: x, y_placeholder: y}
+        )
+
+        return next_example, next_label
+
+    return input_fn, iterator_initializer_hook
+
 def main(opts):
+    '''main'''
     if opts.fashion:
         data = read_data_sets(opts.data_dir,
                               source_url='http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/')
@@ -128,38 +168,23 @@ def main(opts):
                 log_step_count_steps=100)
     classifier = tf.keras.estimator.model_to_estimator(model, model_dir=opts.log_dir, config=config)
 
-    # train_input_fn = tf.estimator.inputs.numpy_input_fn(
-    #                      x={'input': data.train.images},
-    #                      y=tf.keras.utils.to_categorical(data.train.labels.astype(np.int32), 10).astype(np.float32),
-    #                      num_epochs=None,
-    #                      batch_size=opts.batch_size,
-    #                      shuffle=True)
-    # eval_input_fn = tf.estimator.inputs.numpy_input_fn(
-    #                      x={'input': data.test.images},
-    #                      y=tf.keras.utils.to_categorical(data.test.labels.astype(np.int32), 10).astype(np.float32),
-    #                      num_epochs=1,
-    #                      shuffle=False)
-    def input_fn(x, y):
-        dataset = tf.data.Dataset.from_tensor_slices((x, y))
-        dataset = dataset.shuffle(1000).repeat().batch(opts.batch_size)
-        return dataset
-
-    def train_input_fn():
-        x = {'input': data.train.images}
-        y = tf.keras.utils.to_categorical(data.train.labels.astype(np.int32), 10).astype(np.float32)
-        return input_fn(x, y)
-    
-    def eval_input_fn():
-        x = {'input': data.test.images}
-        y = tf.keras.utils.to_categorical(data.test.labels.astype(np.int32), 10).astype(np.float32)
-        return input_fn(x, y)
+    train_input_fn, train_iter_hook = get_inputs(data.train.images,
+        tf.keras.utils.to_categorical(data.train.labels.astype(np.int32), 10).astype(np.float32),
+        batch_size=opts.batch_size,
+        train=True)
+    eval_input_fn, eval_iter_hook = get_inputs(data.test.images,
+        tf.keras.utils.to_categorical(data.test.labels.astype(np.int32), 10).astype(np.float32),
+        batch_size=opts.batch_size,
+        train=False)
 
     train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn,
-                                        max_steps=1e6)
+                                        max_steps=1e6,
+                                        hooks=[train_iter_hook])
     eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn,
                                       steps=None,
                                       start_delay_secs=0,
-                                      throttle_secs=opts.eval_secs)
+                                      throttle_secs=opts.eval_secs,
+                                      hooks=[eval_iter_hook])
 
     tf.estimator.train_and_evaluate(classifier, train_spec, eval_spec)
 
