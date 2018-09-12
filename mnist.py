@@ -10,17 +10,23 @@ from tensorflow.examples.tutorials.mnist.input_data import read_data_sets
 
 tf.logging.set_verbosity(tf.logging.INFO)
 try:
-    config = os.environ['TF_CONFIG']
-    config = json.loads(config)
-    task = config['task']['type']
-    task_index = config['task']['index']
-
-    local_ip = 'localhost:' + config['cluster'][task][task_index].split(':')[1]
-    config['cluster'][task][task_index] = local_ip
-    if task == 'chief' or task == 'master':
-        config['cluster']['worker'][task_index] = local_ip
-    os.environ['TF_CONFIG'] = json.dumps(config)
-except:
+    job_name = os.environ['JOB_NAME']
+    task_index = int(os.environ['TASK_INDEX'])
+    ps_hosts = os.environ['PS_HOSTS'].split(',')
+    worker_hosts = os.environ['WORKER_HOSTS'].split(',')
+    TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
+                 'cluster': {'chief': [worker_hosts[0]],
+                             'worker': worker_hosts,
+                             'ps': ps_hosts},
+                 'environment': 'cloud'}
+    local_ip = 'localhost:' + TF_CONFIG['cluster'][job_name][task_index].split(':')[1]
+    if (job_name == 'chief') or (job_name == 'worker' and task_index == 0):
+        job_name = 'chief'
+        TF_CONFIG['task']['type'] = 'chief'
+        TF_CONFIG['cluster']['worker'][0] = local_ip
+    TF_CONFIG['cluster'][job_name][task_index] = local_ip
+    os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
+except KeyError as ex:
     pass
 
 def str2bool(v):
@@ -109,14 +115,18 @@ def main(opts):
 
     if opts.cnn:
         model = cnn_model(opts)
+        ckpt_steps = 100
+        log_steps = 10
     else:
         model = mlp_model(opts)
+        ckpt_steps = 1000
+        log_steps = 100
     config = tf.estimator.RunConfig(
                 model_dir=opts.log_dir,
                 save_summary_steps=1,
-                save_checkpoints_steps=1000,
-                keep_checkpoint_max=5,
-                log_step_count_steps=100)
+                save_checkpoints_steps=ckpt_steps,
+                keep_checkpoint_max=3,
+                log_step_count_steps=log_steps)
     classifier = tf.keras.estimator.model_to_estimator(model, model_dir=opts.log_dir, config=config)
 
     train_input_fn = tf.estimator.inputs.numpy_input_fn(
@@ -124,12 +134,16 @@ def main(opts):
                          y=tf.keras.utils.to_categorical(data.train.labels.astype(np.int32), 10).astype(np.float32),
                          num_epochs=None,
                          batch_size=opts.batch_size,
-                         shuffle=True)
+                         shuffle=True,
+                         queue_capacity=10*opts.batch_size,
+                         num_threads=4)
     eval_input_fn = tf.estimator.inputs.numpy_input_fn(
                          x={'input': data.test.images},
                          y=tf.keras.utils.to_categorical(data.test.labels.astype(np.int32), 10).astype(np.float32),
                          num_epochs=1,
-                         shuffle=False)
+                         shuffle=False,
+                         queue_capacity=10*opts.batch_size,
+                         num_threads=4)
 
     train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn,
                                         max_steps=1e6)
