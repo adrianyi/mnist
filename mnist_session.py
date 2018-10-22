@@ -159,7 +159,7 @@ def main(opts):
         local_step = 0
         while not sess.should_stop():
             local_step += 1
-            loss_value, _, global_step = sess.run([loss, train_op, tf.train.get_global_step()])
+            loss_value, _, global_step = sess.run([loss, train_op, tf.train.get_or_create_global_step()])
             if local_step%10 == 0:
                 tf.logging.info('{} {} {} {}'.format(task_index, local_step, global_step, loss_value))
 
