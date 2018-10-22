@@ -24,6 +24,10 @@ except KeyError as ex:
     task_index = 0
     ps_hosts = []
     worker_hosts = []
+print('job_name:', job_name)
+print('task_index:', task_index)
+print('ps_hosts:', ps_hosts)
+print('worker_hosts:', worker_hosts)
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -148,6 +152,10 @@ def main(opts):
             optimizer = tf.contrib.opt.ElasticAverageOptimizer(optimizer, num_worker=len(worker_hosts), ea_custom_getter=ea_custom_getter)
             train_op = optimizer.minimize(loss, global_step=tf.train.get_or_create_global_step())
         hooks = [optimizer.make_session_run_hook(is_chief=(task_index == 0), task_index=task_index)]
+
+    if job_name == 'worker' and task_index != 0:
+        import time
+        time.sleep(30)
 
     with tf.train.MonitoredTrainingSession(
         master=target,
