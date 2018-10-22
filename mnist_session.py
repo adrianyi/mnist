@@ -22,8 +22,8 @@ try:
 except KeyError as ex:
     job_name = None
     task_index = 0
-    ps_hosts = None
-    worker_hosts = None
+    ps_hosts = []
+    worker_hosts = []
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -153,16 +153,15 @@ def main(opts):
         master=target,
         is_chief=(task_index == 0),
         checkpoint_dir=opts.log_dir,
-        log_step_count_steps=100,
-        hooks=hooks) as sess:
+        log_step_count_steps=50) as sess:
         sess.run(iterator.initializer, feed_dict={features_placeholder: features,
                                                   labels_placeholder: labels})
         local_step = 0
         while not sess.should_stop():
-            local_step+=1
+            local_step += 1
             loss_value, _, global_step = sess.run([loss, train_op, tf.train.get_global_step()])
-            if global_step%10 == 0:
-                print(local_step, global_step, loss_value)
+            if local_step%10 == 0:
+                tf.logging.info('{} {} {} {}'.format(task_index, local_step, global_step, loss_value))
 
 if __name__ == '__main__':
     opts = get_args()
