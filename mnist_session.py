@@ -15,10 +15,10 @@ try:
     ps_hosts = os.environ['PS_HOSTS'].split(',')
     worker_hosts = os.environ['WORKER_HOSTS'].split(',')
 
-    if job_name == 'ps':
-        ps_hosts[task_index] = 'localhost:' + ps_hosts[task_index].split(':')[1]
-    else:
-        worker_hosts[task_index] = 'localhost:' + worker_hosts[task_index].split(':')[1]
+    # if job_name == 'ps':
+    #     ps_hosts[task_index] = 'localhost:' + ps_hosts[task_index].split(':')[1]
+    # else:
+    #     worker_hosts[task_index] = 'localhost:' + worker_hosts[task_index].split(':')[1]
 except KeyError as ex:
     job_name = None
     task_index = 0
@@ -153,7 +153,8 @@ def main(opts):
         master=target,
         is_chief=(task_index == 0),
         checkpoint_dir=opts.log_dir,
-        log_step_count_steps=50) as sess:
+        log_step_count_steps=50,
+        hooks=hooks) as sess:
         sess.run(iterator.initializer, feed_dict={features_placeholder: features,
                                                   labels_placeholder: labels})
         local_step = 0
