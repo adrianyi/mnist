@@ -111,8 +111,7 @@ def cnn_net(input_tensor):
 
 def model(features, labels):
     logits = cnn_net(features)
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
-              logits=logits, labels=labels), name="loss")
+    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits, name='cross_entropy'), name='loss')
     optimizer = tf.train.AdamOptimizer(learning_rate=opts.learning_rate)
     return logits, loss, optimizer.minimize(loss, global_step=tf.train.get_or_create_global_step())
 
@@ -127,9 +126,10 @@ def main(opts):
     else:
         data = read_data_sets(opts.data_dir)
 
-    with tf.device(device):
+    ea_custom_getter = tf.contrib.opt.ElasticAverageCustomGetter("/job:worker/task:{}".format(task_index))
+    with tf.device(device), tf.variable_scope('',custom_getter=ea_custom_getter):
         features = data.train.images
-        labels = tf.keras.utils.to_categorical(data.train.labels.astype(np.int32), 10).astype(np.float32)
+        labels = data.train.labels.astype(np.int32)
 
         features_placeholder = tf.placeholder(features.dtype, features.shape)
         labels_placeholder = tf.placeholder(labels.dtype, labels.shape)
@@ -140,13 +140,21 @@ def main(opts):
         iterator = dataset.make_initializable_iterator()
 
         x, y = iterator.get_next()
-        logits, loss, train_op = model(x, y)
-    
+        # logits, loss, train_op = model(x, y)
+        logits = cnn_net(x)
+        loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits))
+        with tf.device("/job:worker/task:{}".format(task_index)):
+            optimizer = tf.train.MomentumOptimizer(learning_rate=opts.learning_rate, momentum=0.01)
+            optimizer = tf.contrib.opt.ElasticAverageOptimizer(optimizer, num_worker=len(worker_hosts), ea_custom_getter=ea_custom_getter)
+            train_op = optimizer.minimize(loss, global_step=tf.train.get_or_create_global_step())
+        hooks = [optimizer.make_session_run_hook(is_chief=(task_index == 0), task_index=task_index)]
+
     with tf.train.MonitoredTrainingSession(
         master=target,
         is_chief=(task_index == 0),
         checkpoint_dir=opts.log_dir,
-        log_step_count_steps=100) as sess:
+        log_step_count_steps=100,
+        hooks=hooks) as sess:
         sess.run(iterator.initializer, feed_dict={features_placeholder: features,
                                                   labels_placeholder: labels})
         local_step = 0
