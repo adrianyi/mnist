@@ -16,23 +16,6 @@ try:
     task_index = int(os.environ['TASK_INDEX'])
     ps_hosts = os.environ['PS_HOSTS'].split(',')
     worker_hosts = os.environ['WORKER_HOSTS'].split(',')
-    TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
-                 'cluster': {'chief': [worker_hosts[0]],
-                             'worker': worker_hosts,
-                             'ps': ps_hosts},
-                 'environment': 'cloud'}
-    local_ip = 'localhost:' + TF_CONFIG['cluster'][job_name][task_index].split(':')[1]
-    if (job_name == 'chief') or (job_name == 'worker' and task_index == 0):
-        job_name = 'chief'
-        TF_CONFIG['task']['type'] = 'chief'
-        TF_CONFIG['cluster']['worker'][0] = local_ip
-    TF_CONFIG['cluster'][job_name][task_index] = local_ip
-    os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
-    print(TF_CONFIG)
-    # if job_name == 'ps':
-    #     ps_hosts[task_index] = 'localhost:' + ps_hosts[task_index].split(':')[1]
-    # else:
-    #     worker_hosts[task_index] = 'localhost:' + worker_hosts[task_index].split(':')[1]
 except KeyError as ex:
     job_name = None
     task_index = 0
@@ -81,41 +64,6 @@ def get_args():
 
     return opts
 
-def device_and_target():
-  # If FLAGS.job_name is not set, we're running single-machine TensorFlow.
-  # Don't set a device.
-    if job_name is None:
-        print("Running single-machine training")
-        return (None, "")
-
-  # Otherwise we're running distributed TensorFlow.
-    print("%s.%d  -- Running distributed training"%(job_name, task_index))
-    if task_index is None or task_index == "":
-        raise ValueError("Must specify an explicit `task_index`")
-    if ps_hosts is None or ps_hosts == "":
-        raise ValueError("Must specify an explicit `ps_hosts`")
-    if worker_hosts is None or worker_hosts == "":
-        raise ValueError("Must specify an explicit `worker_hosts`")
-
-    cluster_spec = tf.train.ClusterSpec({
-        "ps": ps_hosts,
-        "worker": worker_hosts,
-    })
-    server = tf.train.Server(
-        cluster_spec, job_name=job_name, task_index=task_index)
-    if job_name == "ps":
-        server.join()
-
-    worker_device = "/job:worker/task:{}".format(task_index)
-    # The device setter will automatically place Variables ops on separate
-    # parameter servers (ps). The non-Variable ops will be placed on the workers.
-    return (
-        tf.train.replica_device_setter(
-            worker_device=worker_device,
-            cluster=cluster_spec),
-        server.target,
-    )
-
 class IteratorInitializerHook(tf.train.SessionRunHook):
     '''From https://medium.com/onfido-tech/higher-level-apis-in-tensorflow-67bfb602e6c0'''
     def __init__(self):
@@ -138,6 +86,9 @@ def cnn_net(input_tensor):
 def main(opts):
     # Initiate Horovod
     hvd.init()
+    print('Horovod size:', hvd.size())
+    print('Horovod local rank:', hvd.local_rank())
+    print('Horovod rank:', hvd.rank())
 
     if opts.fashion:
         data = read_data_sets(opts.data_dir,
@@ -166,7 +117,8 @@ def main(opts):
     def model_fn(features, labels, mode):
         logits = cnn_net(features)
         loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits, name='cross_entropy'), name='loss')
-        optimizer = tf.train.MomentumOptimizer(learning_rate=opts.learning_rate * hvd.size(), momentum=0.01)
+        lr = tf.train.exponential_decay(learning_rate=opts.learning_rate*hvd.size(), global_step=tf.train.get_global_step(), decay_steps=1, decay_rate=opts.learning_decay)
+        optimizer = tf.train.AdamOptimizer(learning_rate=lr)
         # Horovod distributed optimizer
         optimizer = hvd.DistributedOptimizer(optimizer)
         train_op = optimizer.minimize(loss, global_step=tf.train.get_or_create_global_step())
@@ -176,14 +128,14 @@ def main(opts):
         metrics = {'accuracy': tf.metrics.accuracy(labels=labels, predictions=pred, name='accuracy')}
 
         return tf.estimator.EstimatorSpec(mode=mode,
-                                            predictions=pred,
-                                            train_op=train_op,
-                                            loss=loss,
-                                            eval_metric_ops=metrics)
+                                          predictions=pred,
+                                          train_op=train_op,
+                                          loss=loss,
+                                          eval_metric_ops=metrics)
 
     session_config = tf.ConfigProto()
-    session_config.gpu_options.allow_growth = True
-    session_config.gpu_options.visible_device_list = str(hvd.local_rank())
+    session_config.gpu_options.allow_growth = True # pylint: no-member
+    session_config.gpu_options.visible_device_list = str(hvd.local_rank()) #pylint: disable=no-member
 
     runconfig = tf.estimator.RunConfig(
         model_dir=(opts.log_dir if hvd.rank() == 0 else None),
@@ -206,9 +158,11 @@ def main(opts):
             input_fn=train_input_fn,
             steps=opts.eval_steps // hvd.size(),
             hooks=[train_iter_hook, bcast_hook])
-        
-        eval_results = estimator.evaluate(input_fn=eval_input_fn)
-        print(eval_results)
+
+        eval_results = estimator.evaluate(
+            input_fn=eval_input_fn,
+            hooks=[eval_iter_hook],
+            )
 
 if __name__ == '__main__':
     opts = get_args()
