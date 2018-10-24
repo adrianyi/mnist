@@ -96,24 +96,6 @@ def main(opts):
     else:
         data = read_data_sets(opts.data_dir)
 
-    def inputfn_and_initializer(x, y, train=False):
-        iterator_initializer_hook = IteratorInitializerHook()
-
-        def input_fn():
-            x_placeholder = tf.placeholder(x.dtype, x.shape)
-            y_placeholder = tf.placeholder(y.dtype, y.shape)
-
-            dataset = tf.data.Dataset.from_tensor_slices((x_placeholder, y_placeholder))
-            if train:
-                dataset = tf.data.Dataset.apply(dataset, tf.contrib.data.shuffle_and_repeat(5*opts.batch_size, count=None))
-            dataset = dataset.batch(batch_size=opts.batch_size)
-            iterator = dataset.make_initializable_iterator()
-            iterator_initializer_hook.iterator_initializer_func = lambda sess: sess.run(iterator.initializer,
-                                                                                        feed_dict={x_placeholder: x,
-                                                                                                   y_placeholder: y})
-            return iterator.get_next()
-        return input_fn, iterator_initializer_hook
-
     def model_fn(features, labels, mode):
         logits = cnn_net(features)
         loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits, name='cross_entropy'), name='loss')
@@ -139,10 +121,10 @@ def main(opts):
 
     runconfig = tf.estimator.RunConfig(
         model_dir=(opts.log_dir if hvd.rank() == 0 else None),
-        save_summary_steps=50,
+        save_summary_steps=(50 if hvd.rank() == 0 else None),
         save_checkpoints_steps=50,
         keep_checkpoint_max=2,
-        log_step_count_steps=10,
+        log_step_count_steps=(10 if hvd.rank() == 0 else None),
         session_config=session_config)
     estimator = tf.estimator.Estimator(
         model_dir=(opts.log_dir if hvd.rank() == 0 else None),
@@ -150,19 +132,26 @@ def main(opts):
         config=runconfig)
     bcast_hook = hvd.BroadcastGlobalVariablesHook(0)
 
-    train_input_fn, train_iter_hook = inputfn_and_initializer(data.train.images, data.train.labels.astype(np.int32), train=True)
-    eval_input_fn, eval_iter_hook = inputfn_and_initializer(data.test.images, data.test.labels.astype(np.int32), train=False)
+    train_input_fn = tf.estimator.inputs.numpy_input_fn(
+                         x=data.train.images,
+                         y=data.train.labels.astype(np.int32),
+                         num_epochs=None,
+                         batch_size=opts.batch_size,
+                         shuffle=True)
+    eval_input_fn = tf.estimator.inputs.numpy_input_fn(
+                         x=data.test.images,
+                         y=data.test.labels.astype(np.int32),
+                         num_epochs=1,
+                         shuffle=False)
 
     while True:
         estimator.train(
             input_fn=train_input_fn,
             steps=opts.eval_steps // hvd.size(),
-            hooks=[train_iter_hook, bcast_hook])
+            hooks=[bcast_hook])
 
         eval_results = estimator.evaluate(
-            input_fn=eval_input_fn,
-            hooks=[eval_iter_hook],
-            )
+            input_fn=eval_input_fn)
 
 if __name__ == '__main__':
     opts = get_args()
