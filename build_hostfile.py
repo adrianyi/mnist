@@ -42,7 +42,7 @@ def main(opts):
     if job_name == 'worker' and task_index == 0:
         touch(filename)
         with open(filename, 'a') as f:
-            lines = ['{host} slots={np} max-slots={np}'.format(host=host, np=opts.num_procs_per_node)
+            lines = ['{host} slots={np} max-slots={np}'.format(host=host.split(':')[0], np=opts.num_procs_per_node)
                      for host in worker_hosts + ps_hosts]
             f.write('\n'.join(lines))
     else:
