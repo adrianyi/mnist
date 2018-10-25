@@ -9,19 +9,36 @@ from clusterone import get_data_path, get_logs_path
 from tensorflow.examples.tutorials.mnist.input_data import read_data_sets
 
 tf.logging.set_verbosity(tf.logging.INFO)
+tf.logging.set_verbosity(tf.logging.INFO)
 try:
-    config = os.environ['TF_CONFIG']
-    config = json.loads(config)
-    task = config['task']['type']
-    task_index = config['task']['index']
+    # Create necessary TF_CONFIG environment variable for Estimator
+    job_name = os.environ['JOB_NAME']
+    task_index = int(os.environ['TASK_INDEX'])
+    ps_hosts = os.environ['PS_HOSTS'].split(',')
+    worker_hosts = os.environ['WORKER_HOSTS'].split(',')
 
-    local_ip = 'localhost:' + config['cluster'][task][task_index].split(':')[1]
-    config['cluster'][task][task_index] = local_ip
-    if task == 'chief' or task == 'master':
-        config['cluster']['worker'][task_index] = local_ip
-    os.environ['TF_CONFIG'] = json.dumps(config)
-except:
+    if job_name == 'worker' & task_index == len(worker_hosts)-1:
+        job_name = 'evaluator'
+        task_index = 0
+    worker_hosts = worker_hosts[:-1]
+
+    TF_CONFIG = {'task': {'type': job_name, 'index': task_index},
+                 'cluster': {'chief': [worker_hosts[0]],
+                             'worker': worker_hosts,
+                             'ps': ps_hosts},
+                 'environment': 'cloud'}
+
+    if job_name != 'evaluator':
+        local_ip = 'localhost:' + TF_CONFIG['cluster'][job_name][task_index].split(':')[1]
+        if (job_name == 'chief') or (job_name == 'worker' and task_index == 0):
+            job_name = 'chief'
+            TF_CONFIG['task']['type'] = 'chief'
+            TF_CONFIG['cluster']['worker'][0] = local_ip
+        TF_CONFIG['cluster'][job_name][task_index] = local_ip
+    os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
+except KeyError as ex:
     pass
+
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -30,6 +47,7 @@ def str2bool(v):
         return False
     else:
         raise IOError('Boolean value expected (i.e. yes/no, true/false, y/n, t/f, 1/0).')
+
 
 def get_args():
     '''Return parsed args'''
@@ -66,6 +84,7 @@ def get_args():
 
     return opts
 
+
 def mlp_model(opts):
     '''Return a MLP Keras model'''
     input_tensor = tf.keras.layers.Input(shape=(784,), name='input')
@@ -81,6 +100,7 @@ def mlp_model(opts):
     model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     return model
+
 
 def cnn_model(opts):
     '''Return a CNN Keras model'''
@@ -99,6 +119,7 @@ def cnn_model(opts):
     model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     print(model.summary())
     return model
+
 
 def main(opts):
     if opts.fashion:
@@ -139,6 +160,7 @@ def main(opts):
                                       throttle_secs=30)
 
     tf.estimator.train_and_evaluate(classifier, train_spec, eval_spec)
+
 
 if __name__ == '__main__':
     opts = get_args()
