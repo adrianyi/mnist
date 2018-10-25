@@ -56,6 +56,10 @@ def get_args():
     # Training params
     parser.add_argument('--eval_steps', type=int, default=1000)
 
+    # Debugger
+    parser.add_argument('--profiler', type=str2bool, default=False,
+                        help='Caution: This will cause training to be slower.')
+
     opts = parser.parse_args()
 
     opts.data_dir = get_data_path(dataset_name='adrianyi/mnist-data',
@@ -156,11 +160,20 @@ def main(opts):
                          num_epochs=1,
                          shuffle=False)
 
+    training_hooks = [bcast_hook]
+    if opts.profiler:
+        if job_name is None:
+            profiler_logdir = os.path.join(opts.log_dir, 'profiler')
+        else:
+            profiler_logdir = 'profiler-{}{}'.format(job_name, task_index)
+        print('Saving profiler files to {}'.format(profiler_logdir))
+        training_hooks.append(tf.train.ProfilerHook(save_secs=10, show_memory=True, output_dir=profiler_logdir))
+
     while True:
         estimator.train(
             input_fn=train_input_fn,
             steps=opts.eval_steps // hvd.size(),
-            hooks=[bcast_hook])
+            hooks=training_hooks)
 
         estimator.evaluate(
             input_fn=eval_input_fn)
