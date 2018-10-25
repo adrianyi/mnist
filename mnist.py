@@ -17,7 +17,7 @@ try:
     ps_hosts = os.environ['PS_HOSTS'].split(',')
     worker_hosts = os.environ['WORKER_HOSTS'].split(',')
 
-    if job_name == 'worker' & task_index == len(worker_hosts)-1:
+    if (job_name == 'worker') and (task_index == len(worker_hosts)-1):
         job_name = 'evaluator'
         task_index = 0
     worker_hosts = worker_hosts[:-1]
@@ -50,7 +50,7 @@ def str2bool(v):
 
 
 def get_args():
-    '''Return parsed args'''
+    """Return parsed args"""
     parser = ArgumentParser()
     parser.add_argument('--local_data_dir', type=str, default='data/',
                         help='Path to local data directory')
@@ -74,19 +74,19 @@ def get_args():
     parser.add_argument('--eval_secs', type=int, default=120,
                         help='throttle_secs for EvalSpec')
 
-    opts = parser.parse_args()
+    args = parser.parse_args()
 
-    opts.data_dir = get_data_path(dataset_name = 'adrianyi/mnist-data',
-                                 local_root = opts.local_data_dir,
-                                 local_repo = '',
-                                 path = '')
-    opts.log_dir = get_logs_path(root = opts.local_log_dir)
+    args.data_dir = get_data_path(dataset_name='adrianyi/mnist-data',
+                                  local_root=args.local_data_dir,
+                                  local_repo='',
+                                  path='')
+    args.log_dir = get_logs_path(root=args.local_log_dir)
 
-    return opts
+    return args
 
 
 def mlp_model(opts):
-    '''Return a MLP Keras model'''
+    """Return a MLP Keras model"""
     input_tensor = tf.keras.layers.Input(shape=(784,), name='input')
 
     temp = input_tensor
@@ -103,7 +103,7 @@ def mlp_model(opts):
 
 
 def cnn_model(opts):
-    '''Return a CNN Keras model'''
+    """Return a CNN Keras model"""
     input_tensor = tf.keras.layers.Input(shape=(784,), name='input')
 
     temp = tf.keras.layers.Reshape([28, 28, 1], name='input_image')(input_tensor)
@@ -163,5 +163,4 @@ def main(opts):
 
 
 if __name__ == '__main__':
-    opts = get_args()
-    main(opts)
+    main(get_args())
