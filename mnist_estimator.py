@@ -28,13 +28,11 @@ try:
     TF_CONFIG['cluster'][job_name][task_index] = local_ip
     os.environ['TF_CONFIG'] = json.dumps(TF_CONFIG)
     print(TF_CONFIG)
-    distributed = True
 except KeyError as ex:
     job_name = 'local'
     task_index = 0
     ps_hosts = []
     worker_hosts = []
-    distributed = False
 print('job name:', job_name)
 print('task_index:', task_index)
 print('ps_hosts:', ps_hosts)
@@ -74,7 +72,7 @@ def get_args():
                         help='throttle_secs for EvalSpec')
 
     # Distribution strategy params
-    parser.add_argument('--distribution_strategy', type=str, default='mirrored',
+    parser.add_argument('--distribution_strategy', type=str, default=None,
                         choices=['mirrored', 'collectiveallreduce'])
     parser.add_argument('--num_gpus', type=int, default=None,
                         help='None means use auto-detect. 0 means use CPU.')
@@ -166,20 +164,20 @@ def get_model_fn(opts):
 
 def main(opts):
     devices = get_device_names(opts.num_gpus)
-    if len(devices) == 1:
+    if opts.num_gpus is None:
+        opts.num_gpus = len([x for x in devices if 'GPU' in x])
+
+    if opts.distribution_strategy is None:
         print('Not using distribution strategy')
         distribution = None
-    elif len(devices) > 1:
-        if opts.distribution_strategy == 'mirrored':
-            print('Using MirroredStrategy with num_gpus={}'.format(len(devices)))
-            distribution = tf.contrib.distribute.MirroredStrategy(num_gpus=len(devices))
-        elif opts.distribution_strategy == 'collectiveallreduce':
-            print('Using CollectiveAllReduceStrategy with num_gpus_per_worker={}'.format(len(devices)))
-            distribution = tf.contrib.distribute.CollectiveAllReduceStrategy(num_gpus_per_worker=len(devices))
-        else:
-            raise NotImplementedError('Distribution strategy not implemented: {}'.format(opts.distribution_strategy))
+    elif opts.distribution_strategy == 'mirrored':
+        print('Using MirroredStrategy with num_gpus={}'.format(opts.num_gpus))
+        distribution = tf.contrib.distribute.MirroredStrategy(num_gpus=opts.num_gpus)
+    elif opts.distribution_strategy == 'collectiveallreduce':
+        print('Using CollectiveAllReduceStrategy with num_gpus_per_worker={}'.format(opts.num_gpus))
+        distribution = tf.contrib.distribute.CollectiveAllReduceStrategy(num_gpus_per_worker=opts.num_gpus)
     else:
-        raise Exception('Expecting at least one device, got {}'.format(devices))
+        raise NotImplementedError('Distribution strategy not implemented: {}'.format(opts.distribution_strategy))
 
     train_filenames = glob.glob(os.path.join(opts.data_dir, 'train*.tfrecords'))
     test_filenames = glob.glob(os.path.join(opts.data_dir, 'test*.tfrecords'))
