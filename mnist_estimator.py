@@ -84,7 +84,6 @@ def get_args():
                                   local_repo='',
                                   path='')
     args.log_dir = get_logs_path(root=args.local_log_dir)
-    args.log_dir = os.path.join(args.log_dir, '{}-{}'.format(job_name, task_index))
 
     return args
 
@@ -93,7 +92,8 @@ def get_device_names(num_gpus=None):
     if num_gpus is None:
         devices = [x.name for x in list_local_devices() if x.device_type == 'GPU']
         if len(devices) < 1:
-            return [x.name for x in list_local_devices()]
+            devices = [x.name for x in list_local_devices()]
+        return devices
     elif num_gpus == 0:
         return ['/device:CPU:0']
     return ['/device:GPU:{}'.format(i) for i in range(num_gpus)]
