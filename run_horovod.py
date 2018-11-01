@@ -17,7 +17,10 @@ print('task_index:', task_index)
 print('ps_hosts:', ps_hosts)
 print('worker_hosts:', worker_hosts)
 
-print(os.environ)
+print('='*40, 'Environment Variables', '='*40)
+for k, v in os.environ.items():
+    print('{}: {}'.format(k, v))
+print('='*100)
 
 
 def parse_args():
