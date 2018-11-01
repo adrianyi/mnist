@@ -67,8 +67,9 @@ def main(opts, opts2):
             print('Host {host} ready.'.format(host=host))
         # From https://github.com/uber/horovod/blob/master/docs/docker.md
         # mpirun -np 16 -H host1:4,host2:4,host3:4,host4:4 -mca plm_rsh_args "-p 12345" python keras_mnist_advanced.py
-        cmd = 'mpirun --verbose -np {np} -H {hosts} -mca plm_rsh_args "-p {port}" python -m {module}'\
-              .format(np=n_procs, hosts=hosts_string, port=port, module=opts.module)
+        params = ' '.join(opts2)
+        cmd = 'mpirun --verbose -np {np} -H {hosts} -mca plm_rsh_args "-p {port}" python -m {module} {params}'\
+              .format(np=n_procs, hosts=hosts_string, port=port, module=opts.module, params=params)
         cmd = ' '.join([cmd]+opts2)
     else:
         cmd = '/usr/sbin/sshd -p 5000; while true; do sleep 60; echo $(date); done'

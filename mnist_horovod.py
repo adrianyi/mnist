@@ -54,6 +54,7 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=512)
 
     # Training params
+    parser.add_argument('--train_steps', type=int, default=1e6)
     parser.add_argument('--eval_steps', type=int, default=1000)
 
     # Debugger
@@ -69,16 +70,6 @@ def get_args():
     opts.log_dir = get_logs_path(root=opts.local_log_dir)
 
     return opts
-
-
-class IteratorInitializerHook(tf.train.SessionRunHook):
-    """From https://medium.com/onfido-tech/higher-level-apis-in-tensorflow-67bfb602e6c0"""
-    def __init__(self):
-        super(IteratorInitializerHook, self).__init__()
-        self.iterator_initializer_func = None
-
-    def after_create_session(self, session, coord):
-        self.iterator_initializer_func(session)
 
 
 def cnn_net(input_tensor, opts):
