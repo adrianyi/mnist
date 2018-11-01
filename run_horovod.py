@@ -1,5 +1,6 @@
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import os
+import shutil
 import subprocess
 import time
 
@@ -26,17 +27,34 @@ for k, v in os.environ.items():
 print('='*100)
 
 
+def str2bool(v):
+    """"""
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise IOError('Boolean value expected (i.e. yes/no, true/false, y/n, t/f, 1/0).')
+
+
 def parse_args():
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('--module', type=str, default='run_horovod')
     parser.add_argument('--gpus_per_device', type=int, default=0,
                         choices=[i for i in range(101)])
+    parser.add_argument('--sleep_infinity', type=str2bool, default=False)
     opts, opts2 = parser.parse_known_args()
     return opts, opts2
 
 
 def make_ssh_or_wait():
     if is_chief:
+        if os.path.exists('~/.ssh'):
+            print('~/.ssh exists, removing directory')
+            shutil.rmtree('~/.ssh')
+        if os.path.exists('/data/.ssh'):
+            print('Copying /data/.ssh to ~/.ssh')
+            shutil.copytree('/data/.ssh', '~/.ssh')
         print('Generating ssh-key & config')
         cmd = ' && '.join([
             'mkdir /data/.ssh/',
@@ -78,12 +96,18 @@ def main(opts, opts2):
               .format(np=n_procs, hosts=hosts, port=port, module=opts.module)
         cmd = ' '.join([cmd]+opts2)
     else:
-        cmd = 'sleep infinity'.format(port=port)
+        cmd = 'while true; do sleep 60; echo $(date); done'
 
     print('-'*50)
     print('Running command: {}'.format(cmd))
     print('-'*50)
     subprocess.call(cmd, shell=True)
+    if opts.sleep_infinity:
+        i = 0
+        while True:
+            print('Slept for {}min, sleeping for 1 more minute'.format(i))
+            time.sleep(60)
+            i += 1
 
 
 if __name__ == '__main__':
