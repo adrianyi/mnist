@@ -39,7 +39,7 @@ def str2bool(v):
 
 def parse_args():
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--module', type=str, default='run_horovod')
+    parser.add_argument('--module', type=str, default='mnist_horovod')
     parser.add_argument('--gpus_per_device', type=int, default=0,
                         choices=[i for i in range(101)])
     parser.add_argument('--sleep_infinity', type=str2bool, default=False)
@@ -47,43 +47,10 @@ def parse_args():
     return opts, opts2
 
 
-def make_ssh_or_wait():
-    if is_chief:
-        if os.path.exists('~/.ssh'):
-            print('~/.ssh exists, removing directory')
-            shutil.rmtree('~/.ssh')
-        if os.path.exists('/data/.ssh'):
-            print('Copying /data/.ssh to ~/.ssh')
-            shutil.copytree('/data/.ssh', '~/.ssh')
-        print('Generating ssh-key & config')
-        cmd = ' && '.join([
-            'mkdir /data/.ssh/',
-            'ssh-keygen -f /data/.ssh/id_rsa -t rsa -N ""',
-            'mv /data/.ssh/id_rsa.pub /data/.ssh/authorized_keys',
-            'chmod 600 /data/.ssh/authorized_keys',
-            'echo "Host *" >> /data/.ssh/config',
-            'echo " IdentityFile ~/.ssh/id_rsa" >> /data/.ssh/config',
-            'cp -r /data/.ssh ~/.ssh'
-        ])
-        print('Running command: {}'.format(cmd))
-        subprocess.call(cmd, shell=True)
-        time.sleep(5)
-    else:
-        print('Waiting for chief node to create ssh keys')
-        while not os.path.exists('/data/.ssh/id_rsa'):
-            time.sleep(3)
-        time.sleep(1)
-        cmd = ' && '.join([
-            'cp -r /data/.ssh ~/.ssh',
-            '/usr/sbin/sshd -p 5000'
-        ])
-        print('Running command: {}'.format(cmd))
-        subprocess.call(cmd, shell=True)
-
-
 def main(opts, opts2):
     proc_per_device = max(opts.gpus_per_device, 1)
     hosts = [host.split(':')[0] for host in worker_hosts+ps_hosts]
+    hosts[0] = 'localhost'
     port = worker_hosts[0].split(':')[1]
     n_hosts = len(hosts)
     n_procs = proc_per_device * n_hosts
@@ -111,5 +78,4 @@ def main(opts, opts2):
 
 
 if __name__ == '__main__':
-    make_ssh_or_wait()
     main(*parse_args())
