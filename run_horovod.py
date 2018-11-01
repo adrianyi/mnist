@@ -17,6 +17,8 @@ print('task_index:', task_index)
 print('ps_hosts:', ps_hosts)
 print('worker_hosts:', worker_hosts)
 
+print(os.environ)
+
 
 def parse_args():
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
