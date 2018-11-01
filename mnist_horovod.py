@@ -160,14 +160,19 @@ def main(opts):
         print('Saving profiler files to {}'.format(profiler_logdir))
         training_hooks.append(tf.train.ProfilerHook(save_secs=10, show_memory=True, output_dir=profiler_logdir))
 
-    while True:
+    steps = 0
+
+    while steps < opts.train_steps:
+        step_size = min(opts.eval_steps // hvd.size(), opts.train_steps - steps)
         estimator.train(
             input_fn=train_input_fn,
-            steps=opts.eval_steps // hvd.size(),
+            steps=step_size,
             hooks=training_hooks)
 
         estimator.evaluate(
             input_fn=eval_input_fn)
+
+        steps += step_size
 
 
 if __name__ == '__main__':
