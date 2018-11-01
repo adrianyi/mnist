@@ -54,16 +54,24 @@ def main(opts, opts2):
     port = worker_hosts[0].split(':')[1]
     n_hosts = len(hosts)
     n_procs = proc_per_device * n_hosts
-    hosts = ','.join([host+':{}'.format(proc_per_device) for host in hosts])
+    hosts_string = ','.join([host+':{}'.format(proc_per_device) for host in hosts])
 
     if is_chief:
+        print('Waiting for ssh servers to be ready on workers...')
+        for host in hosts[1:]:
+            cmd = 'ssh -q {host} exit'.format(host=host)
+            resp = 255
+            while resp != 0:
+                resp = subprocess.call(cmd, shell=True)
+                time.sleep(2)
+            print('Host {host} ready.'.format(host=host))
         # From https://github.com/uber/horovod/blob/master/docs/docker.md
         # mpirun -np 16 -H host1:4,host2:4,host3:4,host4:4 -mca plm_rsh_args "-p 12345" python keras_mnist_advanced.py
         cmd = 'mpirun --verbose -np {np} -H {hosts} -mca plm_rsh_args "-p {port}" python -m {module}'\
-              .format(np=n_procs, hosts=hosts, port=port, module=opts.module)
+              .format(np=n_procs, hosts=hosts_string, port=port, module=opts.module)
         cmd = ' '.join([cmd]+opts2)
     else:
-        cmd = 'while true; do sleep 60; echo $(date); done'
+        cmd = '/usr/sbin/sshd -p 5000; while true; do sleep 60; echo $(date); done'
 
     print('-'*50)
     print('Running command: {}'.format(cmd))
