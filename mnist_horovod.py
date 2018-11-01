@@ -66,10 +66,10 @@ def get_args():
     opts = parser.parse_args()
 
     opts.data_dir = get_data_path(dataset_name='adrianyi/mnist-data',
-                                  local_root=opts.local_data_dir,
+                                  local_root=opts.local_data_root,
                                   local_repo='',
                                   path='')
-    opts.log_dir = get_logs_path(root=opts.local_log_dir)
+    opts.log_dir = get_logs_path(root=opts.local_log_root)
     opts.log_dir = os.path.join(opts.log_dir, opts.log_path)
 
     return opts
