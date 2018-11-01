@@ -39,10 +39,12 @@ def str2bool(v):
 def get_args():
     """Return parsed args"""
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--local_data_dir', type=str, default='data/',
+    parser.add_argument('--local_data_root', type=str, default='data/',
                         help='Path to local data directory')
-    parser.add_argument('--local_log_dir', type=str, default='logs/',
+    parser.add_argument('--local_log_root', type=str, default='logs/',
                         help='Path to local log directory')
+    parser.add_argument('--log_path', type=str, default='{}-{}'.format(job_name, task_index) if job_name else '',
+                        help='By default, checkpoints and all will be stored separately for each worker')
     parser.add_argument('--fashion', type=str2bool, default=False,
                         help='Use Fashion MNIST data')
 
@@ -68,6 +70,7 @@ def get_args():
                                   local_repo='',
                                   path='')
     opts.log_dir = get_logs_path(root=opts.local_log_dir)
+    opts.log_dir = os.path.join(opts.log_dir, opts.log_path)
 
     return opts
 
